@@ -1,10 +1,10 @@
 import 'dotenv/config';
 import { config } from './config';
 import { logger } from './logger';
-import { initDatabase, pool } from './db';
 import { initBot, sendTelegramMessage } from './telegram/alerts';
 import { registerCommands } from './telegram/commands';
 import { startChainListener } from './chain/listener';
+import { supabase } from './db';
 
 async function main(): Promise<void> {
     logger.info('🚀 KRAVEN is starting up...');
@@ -20,19 +20,10 @@ async function main(): Promise<void> {
     initBot();
     registerCommands();
 
-    // 3. Connect to database and initialize schema
-    logger.info('Connecting to Supabase database...');
-    try {
-        await initDatabase();
-    } catch (err) {
-        const errMsg = err instanceof Error ? err.message : String(err);
-        logger.error('FATAL: Database connection failed:', err);
-        await sendTelegramMessage(
-            `🔴 <b>KRAVEN startup failed</b>\n\nDatabase connection error:\n<code>${errMsg}</code>\n\nPlease check DATABASE_URL and restart.`,
-            'HTML'
-        );
-        process.exit(1);
-    }
+    // 3. Connect to database
+    // Note: Supabase client is initialized at import time in src/db.ts
+    // No explicit connection test needed for startup, but we log the URL (non-sensitive)
+    logger.info(`Supabase URL: ${config.supabaseUrl}`);
 
     // 4. Start the on-chain WebSocket listener
     logger.info('Starting on-chain listener...');
@@ -51,15 +42,13 @@ async function main(): Promise<void> {
 }
 
 // Graceful shutdown
-process.on('SIGTERM', async () => {
+process.on('SIGTERM', () => {
     logger.info('SIGTERM received. Shutting down gracefully...');
-    await pool.end();
     process.exit(0);
 });
 
-process.on('SIGINT', async () => {
+process.on('SIGINT', () => {
     logger.info('SIGINT received. Shutting down gracefully...');
-    await pool.end();
     process.exit(0);
 });
 

@@ -14,5 +14,6 @@ export const config = {
     telegramChatId: requireEnv('TELEGRAM_CHAT_ID'),
     baseWssRpcUrl: requireEnv('BASE_WSS_RPC_URL'),
     baseHttpsRpcUrl: requireEnv('BASE_HTTPS_RPC_URL'),
-    databaseUrl: requireEnv('DATABASE_URL'),
+    supabaseUrl: requireEnv('SUPABASE_URL'),
+    supabaseAnonKey: requireEnv('SUPABASE_ANON_KEY'),
 } as const;
