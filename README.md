@@ -28,7 +28,8 @@ Set these in your Railway dashboard under **Variables**. Never commit real value
 | `TELEGRAM_CHAT_ID` | Your personal chat ID (send `/start` to [@userinfobot](https://t.me/userinfobot)) |
 | `BASE_WSS_RPC_URL` | Alchemy WebSocket URL: `wss://base-mainnet.g.alchemy.com/v2/YOUR_KEY` |
 | `BASE_HTTPS_RPC_URL` | Alchemy HTTPS URL: `https://base-mainnet.g.alchemy.com/v2/YOUR_KEY` |
-| `DATABASE_URL` | Supabase connection string: `postgresql://postgres:[password]@db.[ref].supabase.co:5432/postgres` |
+| `SUPABASE_URL` | Supabase Project URL: `https://your-ref.supabase.co` |
+| `SUPABASE_ANON_KEY` | Supabase `anon` public key |
 
 ---
 
@@ -37,33 +38,35 @@ Set these in your Railway dashboard under **Variables**. Never commit real value
 ### Prerequisites
 - [Railway account](https://railway.app)
 - [Alchemy account](https://alchemy.com) — create a Base mainnet app and copy both WSS and HTTPS URLs
-- [Supabase project](https://supabase.com) — copy the connection string from **Settings → Database → Connection string → URI**
+- [Supabase project](https://supabase.com) — copy **Project URL** and **`anon` public API key** from **Settings → API**
 - Telegram bot created via [@BotFather](https://t.me/BotFather)
 
 ### Steps
 
-1. **Push this repo to GitHub**
+1. **Set up Supabase Tables**
+   - Go to your Supabase Dashboard → **SQL Editor**.
+   - Paste and run the content of [`schema.sql`](schema.sql) to create the necessary tables.
+
+2. **Push this repo to GitHub**
    ```bash
-   git init
    git add .
-   git commit -m "Initial KRAVEN bot"
-   git remote add origin https://github.com/YOUR_USERNAME/kraven.git
-   git push -u origin main
+   git commit -m "Configure KRAVEN bot"
+   git push origin main
    ```
 
-2. **Create a new Railway project**
+3. **Create a new Railway project**
    - Go to [railway.app](https://railway.app) → New Project → Deploy from GitHub repo
    - Select your `kraven` repository
 
-3. **Set environment variables**
+4. **Set environment variables**
    - In Railway dashboard → your service → **Variables**
-   - Add all 5 variables from the table above
+   - Add all 6 variables from the table above
 
-4. **Deploy**
+5. **Deploy**
    - Railway will automatically run `npm install && npm run build` then `npm start`
    - Check the **Logs** tab to confirm KRAVEN is online
 
-5. **Verify in Telegram**
+6. **Verify in Telegram**
    - You should receive: `✅ KRAVEN is online`
    - Send `/help` to your bot to confirm commands work
 
@@ -107,7 +110,7 @@ src/
 ├── index.ts              # Entry point — orchestrates startup
 ├── config.ts             # Env var validation
 ├── logger.ts             # Timestamped logger
-├── db.ts                 # Supabase/PostgreSQL connection + schema init
+├── db.ts                 # Supabase API client (HTTPS-based)
 ├── chain/
 │   ├── contracts.ts      # Factory addresses + event ABI
 │   └── listener.ts       # viem WebSocket listener + auto-reconnect
@@ -133,7 +136,7 @@ src/
 
 ## Database Schema
 
-Tables are created automatically on startup — no manual migrations needed.
+Since we use the Supabase HTTPS API, you must manually initialize your tables once in the Supabase SQL Editor.
 
 ```sql
 CREATE TABLE IF NOT EXISTS watched_accounts (
