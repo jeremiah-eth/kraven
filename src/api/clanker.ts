@@ -27,7 +27,7 @@ function extractXHandle(obj: unknown): string | null {
 
     const record = obj as Record<string, unknown>;
 
-    // Priority fields to check first
+    // 1. Check priority fields at top level
     const priorityFields = [
         'x_handle', 'xHandle', 'twitter_handle', 'twitterHandle',
         'requestor_handle', 'requestorHandle', 'username', 'handle',
@@ -40,21 +40,43 @@ function extractXHandle(obj: unknown): string | null {
         }
     }
 
-    // Check social_context, requestor, context objects
-    const contextFields = ['social_context', 'requestor', 'context', 'metadata', 'creator'];
-    for (const field of contextFields) {
-        if (record[field] && typeof record[field] === 'object') {
-            const nested = extractXHandle(record[field]);
-            if (nested) return nested;
+    // 2. Check depth in social_context, which is where Doppler and some Clanker responses store it
+    const nestedFields = ['social_context', 'requestor', 'context', 'metadata', 'creator'];
+    for (const field of nestedFields) {
+        const nested = record[field];
+        if (nested && typeof nested === 'object') {
+            // Handle social_context.username directly (Clanker search result format)
+            const nr = nested as Record<string, unknown>;
+            if (typeof nr.username === 'string' && nr.username) {
+                return nr.username.replace(/^@/, '').trim().toLowerCase();
+            }
+            if (typeof nr.handle === 'string' && nr.handle) {
+                return nr.handle.replace(/^@/, '').trim().toLowerCase();
+            }
+            // Recurse for others
+            const found = extractXHandle(nested);
+            if (found) return found;
         }
     }
 
-    // Look for any string field containing a twitter.com or x.com URL
-    for (const [, value] of Object.entries(record)) {
+    // 3. Scan for any string field containing a twitter.com or x.com URL
+    // Or a mention in description/cast_text (lenient for discovery, but helps)
+    for (const [key, value] of Object.entries(record)) {
         if (typeof value === 'string') {
+            // URL Match
             const urlMatch = value.match(/(?:twitter\.com|x\.com)\/([A-Za-z0-9_]{1,50})/i);
             if (urlMatch && urlMatch[1] && urlMatch[1].toLowerCase() !== 'i') {
                 return urlMatch[1].toLowerCase();
+            }
+
+            // Explicit "@handle" in description/cast_text for Bankr/Clanker
+            if (key === 'description' || key === 'cast_text') {
+                const mentionMatch = value.match(/@([A-Za-z0-9_]{1,15})/);
+                if (mentionMatch && mentionMatch[1]) {
+                    // We only take this if it's not "bankrbot"
+                    const h = mentionMatch[1].toLowerCase();
+                    if (h !== 'bankrbot' && h !== 'clanker') return h;
+                }
             }
         }
     }

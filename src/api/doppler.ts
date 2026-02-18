@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { logger } from '../logger';
 
-const DOPPLER_INDEXER_BASE = 'https://api.doppler.lol/search';
+const DOPPLER_INDEXER_BASE = 'https://indexer.doppler.lol/search';
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 2000;
 

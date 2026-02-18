@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { logger } from '../logger';
 
-const BANKR_API_BASE = 'https://api.bankr.bot/launches';
+const BANKR_API_BASE = 'https://api.bankr.chat/launches';
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 2000;
 
