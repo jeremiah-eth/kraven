@@ -108,14 +108,30 @@ export async function discoverWalletsFromDoppler(xHandle: string): Promise<strin
         if (!Array.isArray(data)) return [];
 
         const wallets = new Set<string>();
+        const targetHandle = xHandle.replace(/^@/, '').toLowerCase();
+
         for (const token of data) {
+            // STRICT VERIFICATION: Verify the handle in Doppler metadata
+            let tokenHandle: string | null = null;
+            if (token.metadata && typeof token.metadata === 'object') {
+                const metadata = token.metadata;
+                const x = metadata.x || metadata.twitter || null;
+                if (x && typeof x === 'string') {
+                    tokenHandle = x.split('/').pop()?.split('?')[0]?.replace(/^@/, '').toLowerCase() || null;
+                }
+            }
+
+            if (tokenHandle !== targetHandle) {
+                continue;
+            }
+
             const creator = token.creator || null;
             if (creator && typeof creator === 'string' && creator.startsWith('0x')) {
                 wallets.add(creator.toLowerCase());
             }
         }
 
-        logger.info(`Found ${wallets.size} wallets for @${handle} on Doppler`);
+        logger.info(`Found ${wallets.size} verified wallets for @${handle} on Doppler`);
         return Array.from(wallets);
     } catch (err) {
         logger.error(`Error discovering Doppler wallets for ${xHandle}:`, err);

@@ -162,13 +162,19 @@ export async function discoverWalletsFromClanker(xHandle: string): Promise<strin
 
         const wallets = new Set<string>();
         for (const token of data) {
+            // STRICT VERIFICATION: Ensure the token's metadata actually matches the handle we are looking for
+            const tokenHandle = extractXHandle(token);
+            if (tokenHandle !== xHandle.toLowerCase().replace(/^@/, '')) {
+                continue;
+            }
+
             const sender = token.msg_sender || token.creator || token.admin || null;
             if (sender && typeof sender === 'string' && sender.startsWith('0x')) {
                 wallets.add(sender.toLowerCase());
             }
         }
 
-        logger.info(`Found ${wallets.size} wallets for @${xHandle} on Clanker`);
+        logger.info(`Found ${wallets.size} verified wallets for @${xHandle} on Clanker`);
         return Array.from(wallets);
     } catch (err) {
         logger.error(`Error discovering Clanker wallets for ${xHandle}:`, err);
