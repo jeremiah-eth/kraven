@@ -51,10 +51,27 @@ export async function sendTelegramMessage(
  * Formats and sends a token alert to the configured chat.
  * Also saves the alert to alert_history in the database.
  */
-export async function sendTokenAlert(token: ClankerToken): Promise<void> {
+export async function sendTokenAlert(token: {
+    name: string;
+    symbol: string;
+    contractAddress: string;
+    deployerXHandle?: string;
+    xHandle?: string;
+    platform: string;
+    clankerUrl?: string;
+    txHash: string;
+}): Promise<void> {
     const now = new Date().toUTCString();
-    const xHandle = token.xHandle!;
-    const clankerUrl = `https://clanker.world/clanker/${token.contractAddress}`;
+    const xHandle = token.xHandle || token.deployerXHandle;
+
+    if (!xHandle) {
+        logger.error('No X handle provided for alert:', token);
+        return;
+    }
+
+    // Default clanker URL if not provided (e.g. for Clanker platform)
+    const viewUrl = token.clankerUrl || `https://clanker.world/clanker/${token.contractAddress}`;
+    const viewLabel = token.platform.includes('Doppler') ? 'View on Doppler' : 'View on Clanker';
 
     const message = [
         `🚨 <b>Alpha Alert</b>`,
@@ -63,7 +80,7 @@ export async function sendTokenAlert(token: ClankerToken): Promise<void> {
         `📄 <b>CA:</b> <code>${token.contractAddress}</code>`,
         `🏭 <b>Platform:</b> ${token.platform}`,
         `🐦 <b>Deployer:</b> @${escapeHtml(xHandle)} → <a href="https://x.com/${escapeHtml(xHandle)}">https://x.com/${escapeHtml(xHandle)}</a>`,
-        `🔗 <b>View on Clanker:</b> <a href="${clankerUrl}">${clankerUrl}</a>`,
+        `🔗 <b>${viewLabel}:</b> <a href="${viewUrl}">${viewUrl}</a>`,
         `⏰ <b>Time:</b> ${now}`,
     ].join('\n');
 
@@ -78,7 +95,7 @@ export async function sendTokenAlert(token: ClankerToken): Promise<void> {
             contract_address: token.contractAddress,
             deployer_x_handle: xHandle,
             platform: token.platform,
-            clanker_url: clankerUrl,
+            clanker_url: viewUrl,
             tx_hash: token.txHash,
         });
     } catch (err) {

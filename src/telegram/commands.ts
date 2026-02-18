@@ -1,6 +1,6 @@
 import TelegramBot from 'node-telegram-bot-api';
 import { getBot, alertsSentCount, startTime, sendTelegramMessage } from './alerts';
-import { isWsConnected } from '../chain/listener';
+import { isClankerWsConnected, isDopplerWsConnected } from '../chain/listener';
 import {
     addWatchedAccount,
     removeWatchedAccount,
@@ -140,14 +140,16 @@ export function registerCommands(): void {
         const chatId = msg.chat.id.toString();
         try {
             const watchedCount = await getWatchedCount();
-            const wsStatus = isWsConnected() ? '🟢 Connected' : '🔴 Reconnecting...';
+            const clankerStatus = isClankerWsConnected() ? '🟢 Connected' : '🔴 Reconnecting...';
+            const dopplerStatus = isDopplerWsConnected() ? '🟢 Connected' : '🔴 Reconnecting...';
             const uptime = formatUptime(startTime);
 
             const message = [
                 `📊 <b>KRAVEN Status</b>`,
                 ``,
                 `⏱ <b>Uptime:</b> ${uptime}`,
-                `🔌 <b>WebSocket:</b> ${wsStatus}`,
+                `🔌 <b>Clanker WS:</b> ${clankerStatus}`,
+                `🔌 <b>Doppler WS:</b> ${dopplerStatus}`,
                 `👀 <b>Watching:</b> ${watchedCount} account${watchedCount !== 1 ? 's' : ''}`,
                 `🚨 <b>Alerts sent:</b> ${alertsSentCount}`,
             ].join('\n');
@@ -207,7 +209,7 @@ export function registerCommands(): void {
             ``,
             `<b>/help</b> — Show this help message`,
             ``,
-            `KRAVEN monitors Clanker &amp; Bankr token deployments on Base and alerts you when a watched account deploys a token.`,
+            `KRAVEN monitors Clanker, Doppler &amp; Bankr token deployments on Base and alerts you when a watched account deploys a token.`,
         ].join('\n');
 
         await bot.sendMessage(chatId, message, { parse_mode: 'HTML' });

@@ -8,19 +8,17 @@ KRAVEN is a production-ready, 24/7 monitoring bot that watches all Clanker facto
 
 ## Features
 
-- 🔴 **Real-time on-chain monitoring** via WebSocket (viem) across all 6 Clanker factory contract versions
-- 🤖 **Bankr support** — Bankr tokens flow through Clanker contracts and are automatically detected
-- 📲 **Instant Telegram alerts** with token name, ticker, contract address (tap-to-copy), deployer, platform, and Clanker link
+- 🔴 **Real-time on-chain monitoring** via WebSocket (viem) — monitors both **Clanker** and **Doppler** protocols
+- 🤖 **Bankr support** — detections for tokens launched via Bankr's Clanker or Doppler interfaces
+- 📲 **Instant Telegram alerts** with token name, ticker, contract address (tap-to-copy), deployer, platform, and view link
 - 👀 **Watchlist management** via Telegram commands (`/add`, `/remove`, `/list`)
 - 🔁 **Auto-reconnect** — if the WebSocket drops, KRAVEN reconnects automatically and notifies you
-- 🗄️ **Supabase-backed** — all data persisted in PostgreSQL, nothing stored locally
+- 🗄️ **Supabase-backed** — all data persisted in PostgreSQL via HTTPS API
 - 🚂 **Railway-ready** — includes `Procfile`, `railway.toml`, and build scripts
 
 ---
 
 ## Environment Variables
-
-Set these in your Railway dashboard under **Variables**. Never commit real values.
 
 | Variable | Description |
 |---|---|
@@ -80,7 +78,7 @@ Set these in your Railway dashboard under **Variables**. Never commit real value
 | `/add https://x.com/username` | Also accepts full X profile URLs |
 | `/remove @username` | Remove an account from your watchlist |
 | `/list` | Show all watched accounts |
-| `/status` | Bot uptime, WebSocket status, alert count |
+| `/status` | Uptime, WebSocket health (Clanker & Doppler), alerts |
 | `/recent` | Last 5 alerts sent |
 | `/help` | Show command reference |
 
@@ -93,9 +91,9 @@ Set these in your Railway dashboard under **Variables**. Never commit real value
 
 💊 Token: MyToken $MYTKN
 📄 CA: 0x1234...abcd
-🏭 Platform: via Bankr
+🏭 Platform: Bankr via Doppler
 🐦 Deployer: @username → https://x.com/username
-🔗 View on Clanker: https://clanker.world/clanker/0x1234...abcd
+🔗 View on Doppler: https://app.doppler.lol/token/0x1234...abcd
 ⏰ Time: Tue, 18 Feb 2026 15:43:20 GMT
 ```
 
@@ -112,25 +110,22 @@ src/
 ├── logger.ts             # Timestamped logger
 ├── db.ts                 # Supabase API client (HTTPS-based)
 ├── chain/
-│   ├── contracts.ts      # Factory addresses + event ABI
-│   └── listener.ts       # viem WebSocket listener + auto-reconnect
+│   ├── contracts.ts      # Factory addresses + Doppler Airlock ABI
+│   └── listener.ts       # Parallel WebSocket listeners (v1-v4 Clanker + Doppler)
 ├── api/
-│   └── clanker.ts        # Clanker API client with retry logic
+│   ├── clanker.ts        # Clanker Indexer API client
+│   ├── doppler.ts        # Doppler Indexer API client
+│   └── bankr.ts          # Bankr social metadata resolver
 └── telegram/
     ├── alerts.ts          # Bot init, alert formatter, message sender
     └── commands.ts        # /add /remove /list /status /recent /help
 ```
 
-### Monitored Factory Contracts
-
-| Version | Address |
-|---|---|
-| v4.0.0 | `0xE85A59c628F7d27878ACeB4bf3b35733630083a9` |
-| v3.1.0 | `0x2A787b2362021cC3eEa3C24C4748a6cD5B687382` |
-| v3.0.0 | `0x375C15db32D28cEcdcAB5C03Ab889bf15cbD2c5E` |
-| v2.0.0 | `0x732560fa1d1A76350b1A500155BA978031B53833` |
-| v1.0.0 | `0x9B84fcE5Dcd9a38d2D01d5D72373F6b6b067c3e1` |
-| v0.0.0 | `0x250c9FB2b411B48273f69879007803790A6AeA47` |
+### Supported Platforms
+- **Clanker**: Native deployments on Clanker.
+- **Doppler**: Native deployments on Doppler Airlock.
+- **Bankr via Clanker**: Bankr launches using Clanker infra.
+- **Bankr via Doppler**: Bankr launches using Doppler infra.
 
 ---
 
@@ -157,6 +152,32 @@ CREATE TABLE IF NOT EXISTS alert_history (
   alerted_at         TIMESTAMPTZ DEFAULT NOW()
 );
 ```
+
+---
+
+## Local Development
+
+```bash
+# Install dependencies
+npm install
+
+# Copy env example and fill in real values
+cp .env.example .env
+
+# Run in dev mode (ts-node)
+npm run dev
+
+# Build for production
+npm run build
+```
+
+---
+
+## Notes
+
+- **Multi-Protocol Monitoring**: KRAVEN listens to both the Doppler Airlock and 6 different Clanker factory versions in parallel.
+- **Bankr Logic**: Bankr is an interface that uses either Clanker or Doppler. KRAVEN resolves the correct platform label by querying protocol-specific indexers and the Bankr public API.
+- **X handle required**: If a deployment has no X social context (skipped by both Doppler and Bankr indexers), KRAVEN silently skips it.
 
 ---
 

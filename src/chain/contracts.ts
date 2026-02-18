@@ -1,3 +1,6 @@
+// Doppler Airlock contract address
+export const DOPPLER_AIRLOCK_ADDRESS = '0x660eAaEdEBc968f8f3694354FA8EC0b4c5Ba8D12' as `0x${string}`;
+
 // All known Clanker factory contract addresses across versions
 export const CLANKER_FACTORY_ADDRESSES = [
     '0xE85A59c628F7d27878ACeB4bf3b35733630083a9', // v4.0.0
@@ -8,10 +11,30 @@ export const CLANKER_FACTORY_ADDRESSES = [
     '0x250c9FB2b411B48273f69879007803790A6AeA47', // v0.0.0
 ] as const;
 
+// TokenCreated/Migrate event ABI for Doppler.
+export const DOPPLER_EVENT_ABI = [
+    {
+        type: 'event',
+        name: 'TokenCreated',
+        inputs: [
+            { name: 'tokenAddress', type: 'address', indexed: true },
+            { name: 'creator', type: 'address', indexed: true },
+            { name: 'name', type: 'string', indexed: false },
+            { name: 'symbol', type: 'string', indexed: false },
+        ],
+    },
+    {
+        type: 'event',
+        name: 'Migrate',
+        inputs: [
+            { name: 'tokenAddress', type: 'address', indexed: true },
+            { name: 'pool', type: 'address', indexed: true },
+            { name: 'amount', type: 'uint256', indexed: false },
+        ],
+    },
+] as const;
+
 // TokenCreated event ABI — covers both older and newer Clanker factory signatures.
-// We use a broad ABI that captures the token address from the event.
-// The exact event signature may vary across versions, so we watch for any log
-// from these contracts and parse the token address from the first indexed topic.
 export const TOKEN_CREATED_EVENT_ABI = [
     {
         type: 'event',
