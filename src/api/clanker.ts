@@ -144,3 +144,34 @@ export async function fetchClankerToken(contractAddress: string): Promise<Clanke
 
     return null;
 }
+/**
+ * Searches Clanker history for a given X handle to find associated wallet addresses.
+ */
+export async function discoverWalletsFromClanker(xHandle: string): Promise<string[]> {
+    try {
+        logger.info(`Discovering Clanker wallets for @${xHandle}`);
+
+        // Search by handle keyword
+        const response = await axios.get('https://www.clanker.world/api/tokens', {
+            params: { search: xHandle },
+            timeout: 10000,
+        });
+
+        const data = response.data?.data || response.data || [];
+        if (!Array.isArray(data)) return [];
+
+        const wallets = new Set<string>();
+        for (const token of data) {
+            const sender = token.msg_sender || token.creator || token.admin || null;
+            if (sender && typeof sender === 'string' && sender.startsWith('0x')) {
+                wallets.add(sender.toLowerCase());
+            }
+        }
+
+        logger.info(`Found ${wallets.size} wallets for @${xHandle} on Clanker`);
+        return Array.from(wallets);
+    } catch (err) {
+        logger.error(`Error discovering Clanker wallets for ${xHandle}:`, err);
+        return [];
+    }
+}

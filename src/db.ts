@@ -22,6 +22,14 @@ export interface AlertHistoryEntry {
     alerted_at: string;
 }
 
+export interface WatchedWallet {
+    id: number;
+    x_handle: string;
+    wallet_address: string;
+    source: string | null;
+    discovered_at: string;
+}
+
 export async function getWatchedAccounts(): Promise<WatchedAccount[]> {
     const { data, error } = await supabase
         .from('watched_accounts')
@@ -126,4 +134,52 @@ export async function getWatchedCount(): Promise<number> {
     }
 
     return count || 0;
+}
+
+export async function saveWalletMapping(xHandle: string, walletAddress: string, source: string): Promise<boolean> {
+    const handle = xHandle.toLowerCase();
+    const address = walletAddress.toLowerCase();
+
+    const { error } = await supabase
+        .from('watched_wallets')
+        .upsert(
+            [{ x_handle: handle, wallet_address: address, source }],
+            { onConflict: 'x_handle, wallet_address' }
+        );
+
+    if (error) {
+        logger.error(`Error saving wallet mapping ${handle} -> ${address}:`, error);
+        return false;
+    }
+
+    return true;
+}
+
+export async function getHandleByWallet(walletAddress: string): Promise<string | null> {
+    const { data, error } = await supabase
+        .from('watched_wallets')
+        .select('x_handle')
+        .eq('wallet_address', walletAddress.toLowerCase())
+        .maybeSingle();
+
+    if (error) {
+        logger.error(`Error finding handle for wallet ${walletAddress}:`, error);
+        return null;
+    }
+
+    return data?.x_handle || null;
+}
+
+export async function getWalletsForHandle(xHandle: string): Promise<string[]> {
+    const { data, error } = await supabase
+        .from('watched_wallets')
+        .select('wallet_address')
+        .eq('x_handle', xHandle.toLowerCase());
+
+    if (error) {
+        logger.error(`Error getting wallets for handle ${xHandle}:`, error);
+        return [];
+    }
+
+    return (data || []).map((row: any) => row.wallet_address);
 }

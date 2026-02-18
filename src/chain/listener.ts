@@ -2,11 +2,16 @@ import { createPublicClient, webSocket, parseAbiItem } from 'viem';
 import { base } from 'viem/chains';
 import { config } from '../config';
 import { logger } from '../logger';
-import { CLANKER_FACTORY_ADDRESSES, DOPPLER_AIRLOCK_ADDRESS } from './contracts';
+import {
+    CLANKER_FACTORY_ADDRESSES,
+    DOPPLER_AIRLOCK_ADDRESS,
+    CLANKER_TOKEN_CREATED_ABI,
+    DOPPLER_TOKEN_CREATED_ABI
+} from './contracts';
 import { fetchClankerToken } from '../api/clanker';
 import { fetchDopplerToken } from '../api/doppler';
 import { fetchBankrSocial } from '../api/bankr';
-import { isHandleWatched } from '../db';
+import { isHandleWatched, getHandleByWallet, saveWalletMapping } from '../db';
 import { sendTokenAlert, sendTelegramMessage } from '../telegram/alerts';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -49,11 +54,35 @@ async function handleClankerTokenCreatedLog(log: any): Promise<void> {
         if (!rawAddress) return;
 
         const contractAddress = ('0x' + rawAddress.slice(-40)) as `0x${string}`;
+        const deployerAddress = ('0x' + log.topics?.[2]?.slice(-40))?.toLowerCase();
+
         logger.info(`New Clanker Token! ${contractAddress}, tx: ${log.transactionHash}`);
 
+        // PATH A: Instant Match (via Wallet)
+        if (deployerAddress) {
+            const cachedHandle = await getHandleByWallet(deployerAddress);
+            if (cachedHandle) {
+                logger.info(`🚨 INSTANT CLANKER MATCH! Wallet ${deployerAddress} (@${cachedHandle})`);
+
+                // Fetch basic metadata for the alert (name/symbol only, skip retries since we alert instantly)
+                const token = await fetchClankerToken(contractAddress);
+                await sendTokenAlert({
+                    name: token?.name || 'Unknown',
+                    symbol: token?.symbol || 'UNKNOWN',
+                    contractAddress: contractAddress,
+                    xHandle: cachedHandle,
+                    platform: token?.platform || 'via Clanker',
+                    txHash: log.transactionHash,
+                });
+                return;
+            }
+        }
+
+        // PATH B: Fallback (Wait for Indexer)
+        // Set higher retry count to handle indexing lag
         const token = await fetchClankerToken(contractAddress);
         if (!token) {
-            logger.warn(`Could not fetch Clanker metadata for ${contractAddress}`);
+            logger.warn(`Could not fetch Clanker metadata for ${contractAddress} after retries.`);
             return;
         }
 
@@ -62,7 +91,13 @@ async function handleClankerTokenCreatedLog(log: any): Promise<void> {
         const isWatched = await isHandleWatched(token.xHandle);
         if (!isWatched) return;
 
-        logger.info(`🚨 CLANKER MATCH! @${token.xHandle} deployed ${token.name}`);
+        logger.info(`🚨 CLANKER MATCH (Indexer)! @${token.xHandle} deployed ${token.name}`);
+
+        // LEARN: Store this mapping for future instant alerts
+        if (deployerAddress) {
+            await saveWalletMapping(token.xHandle, deployerAddress, 'Learned (Clanker)');
+        }
+
         await sendTokenAlert({
             name: token.name,
             symbol: token.symbol,
@@ -82,14 +117,37 @@ async function handleClankerTokenCreatedLog(log: any): Promise<void> {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function handleDopplerTokenCreatedLog(log: any): Promise<void> {
     try {
-        // topics[1] is tokenAddress
+        // topics[1] is tokenAddress, topics[2] is creator
         const rawAddress: string | undefined = log.topics?.[1];
+        const rawCreator: string | undefined = log.topics?.[2];
         if (!rawAddress) return;
 
         const contractAddress = ('0x' + rawAddress.slice(-40)) as `0x${string}`;
+        const deployerAddress = rawCreator ? ('0x' + rawCreator.slice(-40)).toLowerCase() : null;
+
         logger.info(`New Doppler Token! ${contractAddress}, tx: ${log.transactionHash}`);
 
-        // 1. Fetch Doppler metadata
+        // PATH A: Instant Match (via Wallet)
+        if (deployerAddress) {
+            const cachedHandle = await getHandleByWallet(deployerAddress);
+            if (cachedHandle) {
+                logger.info(`🚨 INSTANT DOPPLER MATCH! Wallet ${deployerAddress} (@${cachedHandle})`);
+
+                const dopplerToken = await fetchDopplerToken(contractAddress);
+                await sendTokenAlert({
+                    name: dopplerToken?.name || 'Unknown',
+                    symbol: dopplerToken?.symbol || 'UNKNOWN',
+                    contractAddress: contractAddress,
+                    xHandle: cachedHandle,
+                    platform: 'Doppler',
+                    txHash: log.transactionHash,
+                    clankerUrl: `https://app.doppler.lol/token/${contractAddress}`,
+                });
+                return;
+            }
+        }
+
+        // PATH B: Fallback (Wait for Indexer)
         const dopplerToken = await fetchDopplerToken(contractAddress);
 
         let xHandle = dopplerToken?.xHandle || null;
@@ -101,32 +159,32 @@ async function handleDopplerTokenCreatedLog(log: any): Promise<void> {
             xHandle = bankrSocial.xHandle;
             platform = 'Bankr via Doppler';
         } else if (dopplerToken?.xHandle) {
-            // Found in Doppler metadata but not Bankr explicitly
             platform = 'Doppler';
         }
 
         if (!xHandle) {
-            logger.info(`Doppler token ${contractAddress} has no social context — skipping.`);
+            logger.info(`Doppler token ${contractAddress} has no social context after retries — skipping.`);
             return;
         }
 
         const isWatched = await isHandleWatched(xHandle);
-        if (!isWatched) {
-            logger.info(`Doppler deployer @${xHandle} is not on watchlist — skipping.`);
-            return;
-        }
+        if (!isWatched) return;
 
-        logger.info(`🚨 DOPPLER MATCH! @${xHandle} deployed ${dopplerToken?.name || 'Unknown'}`);
+        logger.info(`🚨 DOPPLER MATCH (Indexer)! @${xHandle} deployed ${dopplerToken?.name || 'Unknown'}`);
+
+        // LEARN: Store this mapping
+        if (deployerAddress) {
+            await saveWalletMapping(xHandle, deployerAddress, 'Learned (Doppler)');
+        }
 
         // Format for alert
         await sendTokenAlert({
             name: dopplerToken?.name || 'Unknown',
             symbol: dopplerToken?.symbol || 'UNKNOWN',
             contractAddress: contractAddress,
-            deployerXHandle: xHandle,
             xHandle: xHandle,
             platform: platform,
-            clankerUrl: `https://app.doppler.lol/token/${contractAddress}`, // Doppler URL
+            clankerUrl: `https://app.doppler.lol/token/${contractAddress}`,
             txHash: log.transactionHash,
         });
 
@@ -148,7 +206,7 @@ function startWatching(): void {
         try {
             const unwatch = client.watchEvent({
                 address: factoryAddress as `0x${string}`,
-                event: parseAbiItem('event TokenCreated(address indexed tokenAddress, uint256 positionId, address indexed deployer, uint256 fid, string name, string symbol, uint256 supply, uint256 lockedLiquidityPercentage, string castHash)'),
+                event: parseAbiItem(CLANKER_TOKEN_CREATED_ABI),
                 onLogs: async (logs: unknown[]) => {
                     for (const log of logs) {
                         await handleClankerTokenCreatedLog(log);
@@ -168,7 +226,7 @@ function startWatching(): void {
     try {
         const unwatch = client.watchEvent({
             address: DOPPLER_AIRLOCK_ADDRESS,
-            event: parseAbiItem('event TokenCreated(address indexed tokenAddress, address indexed creator, string name, string symbol)'),
+            event: parseAbiItem(DOPPLER_TOKEN_CREATED_ABI),
             onLogs: async (logs: unknown[]) => {
                 for (const log of logs) {
                     await handleDopplerTokenCreatedLog(log);

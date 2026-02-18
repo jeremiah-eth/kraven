@@ -15,6 +15,15 @@ CREATE TABLE IF NOT EXISTS watched_accounts (
     added_at    TIMESTAMPTZ DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS watched_wallets (
+  id              SERIAL PRIMARY KEY,
+  x_handle        TEXT NOT NULL REFERENCES watched_accounts(x_handle) ON DELETE CASCADE,
+  wallet_address  TEXT NOT NULL,
+  source          TEXT, -- e.g. 'Clanker', 'Doppler', 'Bankr', 'Learned'
+  discovered_at   TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(x_handle, wallet_address)
+);
+
 -- History of every alert that was sent
 CREATE TABLE IF NOT EXISTS alert_history (
     id                  SERIAL PRIMARY KEY,

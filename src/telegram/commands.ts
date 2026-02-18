@@ -7,7 +7,11 @@ import {
     getWatchedAccounts,
     getWatchedCount,
     getRecentAlerts,
+    saveWalletMapping,
 } from '../db';
+import { discoverWalletsFromClanker } from '../api/clanker';
+import { discoverWalletsFromDoppler } from '../api/doppler';
+import { discoverWalletsFromBankr } from '../api/bankr';
 import { logger } from '../logger';
 
 /**
@@ -74,11 +78,44 @@ export function registerCommands(): void {
 
         try {
             const added = await addWatchedAccount(handle);
-            if (added) {
-                await bot.sendMessage(chatId, `✅ Now watching @${escapeHtml(handle)}`, { parse_mode: 'HTML' });
-                logger.info(`Added @${handle} to watchlist.`);
+            const statusMsg = added
+                ? `✅ Now watching @${escapeHtml(handle)}`
+                : `⚠️ @${escapeHtml(handle)} is already in your watchlist. Running wallet discovery...`;
+
+            const initialMsg = await bot.sendMessage(chatId, `${statusMsg}\n\n<i>Searching for associated wallets...</i>`, { parse_mode: 'HTML' });
+
+            // Wallet Discovery Pass
+            const [clWallets, dpWallets, bkWallets] = await Promise.all([
+                discoverWalletsFromClanker(handle),
+                discoverWalletsFromDoppler(handle),
+                discoverWalletsFromBankr(handle)
+            ]);
+
+            const allWallets = new Set([...clWallets, ...dpWallets, ...bkWallets]);
+            const discovered: string[] = [];
+
+            for (const wallet of allWallets) {
+                const saved = await saveWalletMapping(handle, wallet, 'Initial Discovery');
+                if (saved) discovered.push(wallet);
+            }
+
+            let resultMsg = `${statusMsg}\n\n`;
+            if (discovered.length > 0) {
+                resultMsg += `🕵️ <b>Discovered ${discovered.length} wallets:</b>\n` +
+                    discovered.map(w => `<code>${w}</code>`).join('\n') +
+                    `\n\n⚡ <i>Instant alerts active for these wallets!</i>`;
             } else {
-                await bot.sendMessage(chatId, `⚠️ @${escapeHtml(handle)} is already in your watchlist.`, { parse_mode: 'HTML' });
+                resultMsg += `🔎 No historical wallets found. Alerts will activate once the first token is indexed.`;
+            }
+
+            await bot.editMessageText(resultMsg, {
+                chat_id: chatId,
+                message_id: initialMsg.message_id,
+                parse_mode: 'HTML'
+            });
+
+            if (added) {
+                logger.info(`Added @${handle} to watchlist with ${discovered.length} wallets.`);
             }
         } catch (err) {
             logger.error('Error in /add command:', err);

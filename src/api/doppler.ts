@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { logger } from '../logger';
 
-const DOPPLER_INDEXER_BASE = 'https://indexer.doppler.lol/search';
+const DOPPLER_INDEXER_BASE = 'https://api.doppler.lol/search';
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 2000;
 
@@ -89,4 +89,36 @@ export async function fetchDopplerToken(contractAddress: string): Promise<Dopple
     }
 
     return null;
+}
+
+/**
+ * Searches Doppler indexer for a given X handle to find associated creator addresses.
+ */
+export async function discoverWalletsFromDoppler(xHandle: string): Promise<string[]> {
+    try {
+        const handle = xHandle.replace(/^@/, '').toLowerCase();
+        logger.info(`Discovering Doppler wallets for @${handle}`);
+
+        const response = await axios.get(`${DOPPLER_INDEXER_BASE}/${handle}`, {
+            params: { chain_ids: '8453' },
+            timeout: 10000,
+        });
+
+        const data = response.data;
+        if (!Array.isArray(data)) return [];
+
+        const wallets = new Set<string>();
+        for (const token of data) {
+            const creator = token.creator || null;
+            if (creator && typeof creator === 'string' && creator.startsWith('0x')) {
+                wallets.add(creator.toLowerCase());
+            }
+        }
+
+        logger.info(`Found ${wallets.size} wallets for @${handle} on Doppler`);
+        return Array.from(wallets);
+    } catch (err) {
+        logger.error(`Error discovering Doppler wallets for ${xHandle}:`, err);
+        return [];
+    }
 }

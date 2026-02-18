@@ -24,7 +24,6 @@ export async function fetchBankrSocial(tokenAddress: string): Promise<BankrSocia
         try {
             logger.info(`Checking Bankr API for social context ${tokenAddress} (attempt ${attempt}/${MAX_RETRIES})`);
 
-            // Check recent launches first as it's the most common public endpoint
             const response = await axios.get(BANKR_API_BASE, { timeout: 10000 });
 
             const launches = response.data;
@@ -49,9 +48,7 @@ export async function fetchBankrSocial(tokenAddress: string): Promise<BankrSocia
                 }
             }
 
-            // If no match in recent launches, we return defaults (fallback to Doppler-only)
             if (attempt === MAX_RETRIES) break;
-
             await sleep(RETRY_DELAY_MS);
         } catch (err) {
             logger.error(`Error checking Bankr API for ${tokenAddress} (attempt ${attempt}):`, err);
@@ -66,4 +63,40 @@ export async function fetchBankrSocial(tokenAddress: string): Promise<BankrSocia
         xHandle: null,
         isBankrLaunch: false
     };
+}
+
+/**
+ * Scans Bankr's public launch history to find wallets linked to an X handle.
+ */
+export async function discoverWalletsFromBankr(xHandle: string): Promise<string[]> {
+    try {
+        const handle = xHandle.toLowerCase().replace(/^@/, '');
+        logger.info(`Discovering Bankr wallets for @${handle}`);
+
+        const response = await axios.get(BANKR_API_BASE, { timeout: 10000 });
+        const launches = response.data;
+
+        if (!Array.isArray(launches)) return [];
+
+        const wallets = new Set<string>();
+        for (const l of launches) {
+            const lHandle = (l.x_handle || l.twitter_handle || l.deployer_handle || '').toLowerCase().replace(/^@/, '');
+            if (lHandle === handle) {
+                const deployer = l.deployer || l.creator || l.msg_sender || null;
+                if (deployer && typeof deployer === 'string' && deployer.startsWith('0x')) {
+                    wallets.add(deployer.toLowerCase());
+                }
+            }
+        }
+
+        logger.info(`Found ${wallets.size} wallets for @${handle} on Bankr`);
+        return Array.from(wallets);
+    } catch (err: any) {
+        if (err.response?.status === 403) {
+            logger.warn(`Bankr API returned 403 during discovery for @${xHandle}`);
+        } else {
+            logger.error(`Error discovering Bankr wallets for ${xHandle}:`, err);
+        }
+        return [];
+    }
 }
