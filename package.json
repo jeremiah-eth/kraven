@@ -1,0 +1,28 @@
+{
+  "name": "kraven",
+  "version": "1.0.0",
+  "description": "KRAVEN — Real-time Telegram alert bot for Clanker/Bankr token deployments on Base",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts"
+  },
+  "dependencies": {
+    "axios": "^1.7.7",
+    "dotenv": "^16.4.5",
+    "node-telegram-bot-api": "^0.66.0",
+    "pg": "^8.13.0",
+    "viem": "^2.21.19"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.5",
+    "@types/node-telegram-bot-api": "^0.64.7",
+    "@types/pg": "^8.11.10",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
