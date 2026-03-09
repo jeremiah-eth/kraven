@@ -16,15 +16,32 @@ const WORDS = [
 
 export default function Hero() {
     const [index, setIndex] = useState(0);
+    const [subIndex, setSubIndex] = useState(0);
+    const [reverse, setReverse] = useState(false);
     const [email, setEmail] = useState("");
     const [loading, setLoading] = useState(false);
 
+    // Typewriter effect logic
     useEffect(() => {
-        const interval = setInterval(() => {
+        if (subIndex === WORDS[index].length && !reverse) {
+            const timeout = setTimeout(() => {
+                setReverse(true);
+            }, 2000); // 2 second pause when word is complete
+            return () => clearTimeout(timeout);
+        }
+
+        if (subIndex === 0 && reverse) {
+            setReverse(false);
             setIndex((prev) => (prev + 1) % WORDS.length);
-        }, 3000);
-        return () => clearInterval(interval);
-    }, []);
+            return;
+        }
+
+        const timeout = setTimeout(() => {
+            setSubIndex((prev) => prev + (reverse ? -1 : 1));
+        }, reverse ? 50 : 100); // Faster deleting, steady typing
+
+        return () => clearTimeout(timeout);
+    }, [subIndex, index, reverse]);
 
     const handleJoinWaitlist = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -42,7 +59,6 @@ export default function Hero() {
                 return;
             }
 
-            // In a real application, you'd want to create this table first!
             const { error } = await supabase
                 .from("waitlist")
                 .insert([{ email }]);
@@ -86,23 +102,13 @@ export default function Hero() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.1, ease: "easeOut" }}
-                className="max-w-4xl text-5xl sm:text-6xl md:text-7xl font-bold tracking-tight text-foreground h-[2.4em] sm:h-[auto]"
+                className="max-w-4xl text-5xl sm:text-6xl md:text-7xl font-bold tracking-tight text-foreground"
             >
                 Never Miss an <br className="hidden md:block" />
-                <div className="relative h-[1.25em] flex items-center justify-center overflow-hidden">
-                    <AnimatePresence mode="wait">
-                        <motion.span
-                            key={WORDS[index]}
-                            initial={{ y: 40, opacity: 0 }}
-                            animate={{ y: 0, opacity: 1 }}
-                            exit={{ y: -40, opacity: 0 }}
-                            transition={{ duration: 0.5, ease: "easeInOut" }}
-                            className="absolute text-transparent bg-clip-text bg-gradient-to-r from-primary via-blue-500 to-purple-500 whitespace-nowrap"
-                        >
-                            {WORDS[index]}
-                        </motion.span>
-                    </AnimatePresence>
-                </div>
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-blue-500 to-purple-500 min-h-[1.2em] inline-block">
+                    {`${WORDS[index].substring(0, subIndex)}`}
+                    <span className="animate-pulse inline-block w-1 h-[0.8em] bg-primary ml-1 align-middle" />
+                </span>
             </motion.h1>
 
             <motion.p
