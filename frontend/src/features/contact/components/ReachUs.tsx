@@ -20,14 +20,15 @@ export default function ReachUs() {
 
                 <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
                     <Link
-                        href="mailto:contact@kraven.bot"
+                        href="mailto:hollakravenbot@gmail.com"
                         className="group flex items-center justify-center gap-3 rounded-full bg-white/5 border border-white/10 px-8 py-4 text-base font-medium transition-all hover:bg-white/10 hover:border-white/20"
                     >
                         <MailIcon className="h-5 w-5 text-zinc-400 group-hover:text-white transition-colors" />
                         Email Us
                     </Link>
                     <Link
-                        href="#"
+                        href="https://t.me/usekravenbot"
+                        target="_blank"
                         className="group flex items-center justify-center gap-3 rounded-full bg-blue-500/10 border border-blue-500/20 px-8 py-4 text-base font-medium transition-all hover:bg-blue-500/20 hover:border-blue-500/30"
                     >
                         <MessageCircleIcon className="h-5 w-5 text-blue-400 transition-colors" />

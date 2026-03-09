@@ -19,10 +19,10 @@ export default function Footer() {
                     </div>
 
                     <div>
-                        <h3 className="font-semibold text-foreground mb-4">Product</h3>
+                        <h3 className="font-semibold text-foreground mb-4">Community</h3>
                         <ul className="space-y-3">
-                            <li><Link href="#" className="hover:text-primary transition-colors">Features</Link></li>
-                            <li><a href="#" className="text-muted-foreground hover:text-primary transition-colors">Twitter (X)</a></li>
+                            <li><a href="https://t.me/usekravenbot" target="_blank" className="text-muted-foreground hover:text-primary transition-colors">Telegram</a></li>
+                            <li><a href="https://x.com" target="_blank" className="text-muted-foreground hover:text-primary transition-colors">Twitter (X)</a></li>
                             <li><a href="mailto:hollakravenbot@gmail.com" className="text-muted-foreground hover:text-primary transition-colors">Support Email</a></li>
                         </ul>
                     </div>
