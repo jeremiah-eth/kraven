@@ -183,3 +183,97 @@ export async function getWalletsForHandle(xHandle: string): Promise<string[]> {
 
     return (data || []).map((row: any) => row.wallet_address);
 }
+
+// ============================================================
+// Access Control
+// ============================================================
+
+export async function isUserAuthorized(chatId: string): Promise<boolean> {
+    const { data, error } = await supabase
+        .from('authorized_users')
+        .select('chat_id')
+        .eq('chat_id', chatId)
+        .maybeSingle();
+
+    if (error) {
+        logger.error(`Error checking if user ${chatId} is authorized:`, error);
+        return false;
+    }
+
+    if (data) {
+        // Update last active in the background
+        supabase
+            .from('authorized_users')
+            .update({ last_active_at: new Date().toISOString() })
+            .eq('chat_id', chatId)
+            .then(({ error: updateErr }) => {
+                if (updateErr) logger.error(`Failed to update last_active_at for ${chatId}`, updateErr);
+            });
+    }
+
+    return !!data;
+}
+
+export async function validateAndUseAccessCode(code: string, chatId: string): Promise<{ success: boolean; message: string }> {
+    // 1. Check if the code exists and is unused
+    const { data: codeData, error: findError } = await supabase
+        .from('access_codes')
+        .select('*')
+        .eq('code', code)
+        .maybeSingle();
+
+    if (findError) {
+        logger.error(`Error finding access code ${code}:`, findError);
+        return { success: false, message: 'Database error while checking code.' };
+    }
+
+    if (!codeData) {
+        return { success: false, message: 'Invalid access code.' };
+    }
+
+    if (codeData.is_used) {
+        return { success: false, message: 'This access code has already been used.' };
+    }
+
+    // 2. Mark the code as used in a transaction-like manner
+    const { error: updateError } = await supabase
+        .from('access_codes')
+        .update({
+            is_used: true,
+            used_by: chatId,
+            used_at: new Date().toISOString()
+        })
+        .eq('code', code)
+        .eq('is_used', false); // Ensure it hasn't been sniped since our select
+
+    if (updateError) {
+        logger.error(`Error using access code ${code}:`, updateError);
+        return { success: false, message: 'Code was already used or database error occurred.' };
+    }
+
+    // 3. Add to authorized users
+    const { error: authError } = await supabase
+        .from('authorized_users')
+        .upsert([{ chat_id: chatId }]);
+
+    if (authError) {
+        logger.error(`Error authorizing user ${chatId}:`, authError);
+        // Best effort: we consumed the code but failed to add them. They'll need a new code if this stays broken.
+        return { success: false, message: 'Failed to authorize user in the database.' };
+    }
+
+    return { success: true, message: 'Successfully authorized.' };
+}
+
+export async function getAllAuthorizedChats(): Promise<string[]> {
+    const { data, error } = await supabase
+        .from('authorized_users')
+        .select('chat_id');
+
+    if (error) {
+        logger.error('Error fetching authorized users:', error);
+        return [];
+    }
+
+    return (data || []).map((row: any) => row.chat_id);
+}

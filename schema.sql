@@ -46,3 +46,22 @@ CREATE INDEX IF NOT EXISTS idx_alert_history_handle
 
 CREATE INDEX IF NOT EXISTS idx_alert_history_alerted_at
     ON alert_history (alerted_at DESC);
+
+-- ============================================================
+-- Access Control
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS access_codes (
+    id          SERIAL PRIMARY KEY,
+    code        TEXT UNIQUE NOT NULL,
+    is_used     BOOLEAN DEFAULT FALSE,
+    used_by     TEXT, -- The Telegram Chat ID that consumed this code
+    created_at  TIMESTAMPTZ DEFAULT NOW(),
+    used_at     TIMESTAMPTZ
+);
+
+CREATE TABLE IF NOT EXISTS authorized_users (
+    chat_id         TEXT PRIMARY KEY,
+    authorized_at   TIMESTAMPTZ DEFAULT NOW(),
+    last_active_at  TIMESTAMPTZ DEFAULT NOW()
+);

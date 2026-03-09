@@ -2,7 +2,7 @@ import TelegramBot from 'node-telegram-bot-api';
 import { config } from '../config';
 import { logger } from '../logger';
 import { ClankerToken } from '../api/clanker';
-import { saveAlertHistory } from '../db';
+import { saveAlertHistory, getAllAuthorizedChats } from '../db';
 
 let bot: TelegramBot | null = null;
 export let alertsSentCount = 0;
@@ -30,7 +30,7 @@ function escapeHtml(text: string): string {
 }
 
 /**
- * Sends a plain text or HTML message to the configured TELEGRAM_CHAT_ID.
+ * Sends a plain text or HTML message to ALL authorized users.
  */
 export async function sendTelegramMessage(
     text: string,
@@ -38,12 +38,25 @@ export async function sendTelegramMessage(
 ): Promise<void> {
     try {
         const b = getBot();
-        await b.sendMessage(config.telegramChatId, text, {
-            parse_mode: parseMode,
-            disable_web_page_preview: true,
-        });
+        const chats = await getAllAuthorizedChats();
+
+        if (chats.length === 0) {
+            logger.warn('No authorized users found to receive message.');
+            return;
+        }
+
+        const promises = chats.map(chatId =>
+            b.sendMessage(chatId, text, {
+                parse_mode: parseMode,
+                disable_web_page_preview: true,
+            }).catch(err => {
+                logger.error(`Failed to send message to authorized user ${chatId}:`, err);
+            })
+        );
+
+        await Promise.all(promises);
     } catch (err) {
-        logger.error('Failed to send Telegram message:', err);
+        logger.error('Failed to broadcast Telegram message:', err);
     }
 }
 

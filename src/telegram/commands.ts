@@ -8,6 +8,8 @@ import {
     getWatchedCount,
     getRecentAlerts,
     saveWalletMapping,
+    isUserAuthorized,
+    validateAndUseAccessCode,
 } from '../db';
 import { discoverWalletsFromClanker } from '../api/clanker';
 import { discoverWalletsFromDoppler } from '../api/doppler';
@@ -60,9 +62,53 @@ function escapeHtml(text: string): string {
 export function registerCommands(): void {
     const bot: TelegramBot = getBot();
 
+    // Middleware: Authorization Check for all commands
+    bot.onText(/^\/(.*)/, async (msg: TelegramBot.Message, match: RegExpExecArray | null) => {
+        const command = match?.[1]?.split(' ')[0]?.toLowerCase(); // e.g., 'start', 'list', 'help'
+        const chatId = msg.chat.id.toString();
+
+        // /start is public (used for auth)
+        if (command === 'start') return;
+
+        const isAuth = await isUserAuthorized(chatId);
+        if (!isAuth) {
+            await bot.sendMessage(chatId, '🔒 <b>Access Denied</b>\n\nYou are not authorized to use this bot.\nPlease enter your access code using: <code>/start [YOUR_CODE]</code>', { parse_mode: 'HTML' });
+            return;
+        }
+    });
+
+    // /start [code]
+    bot.onText(/^\/start(?:\s+(.+))?$/, async (msg: TelegramBot.Message, match: RegExpExecArray | null) => {
+        const chatId = msg.chat.id.toString();
+        const code = match?.[1]?.trim();
+
+        const isAuth = await isUserAuthorized(chatId);
+
+        if (isAuth) {
+            await bot.sendMessage(chatId, '✅ <b>You are already authorized.</b>\n\nSend /help to see available commands.', { parse_mode: 'HTML' });
+            return;
+        }
+
+        if (!code) {
+            await bot.sendMessage(chatId, 'Welcome to KRAVEN.\n\n🔒 This is a private bot. Please enter your access code:\n<code>/start [YOUR_CODE]</code>', { parse_mode: 'HTML' });
+            return;
+        }
+
+        const result = await validateAndUseAccessCode(code, chatId);
+        if (result.success) {
+            logger.info(`User ${chatId} successfully authorized with code ${code}`);
+            await bot.sendMessage(chatId, `🎉 <b>Access Granted!</b>\n\nWelcome to KRAVEN. You can now receive alerts and manage the watchlist.\n\nSend /help to get started.`, { parse_mode: 'HTML' });
+        } else {
+            logger.warn(`User ${chatId} failed auth with code ${code}. Reason: ${result.message}`);
+            await bot.sendMessage(chatId, `❌ <b>Auth Failed</b>: ${result.message}`, { parse_mode: 'HTML' });
+        }
+    });
+
     // /add [url or handle]
     bot.onText(/^\/add(?:\s+(.+))?$/, async (msg: TelegramBot.Message, match: RegExpExecArray | null) => {
         const chatId = msg.chat.id.toString();
+        if (!(await isUserAuthorized(chatId))) return; // Enforce middleware
+
         const input = match?.[1]?.trim();
 
         if (!input) {
@@ -126,6 +172,8 @@ export function registerCommands(): void {
     // /remove [handle]
     bot.onText(/^\/remove(?:\s+(.+))?$/, async (msg: TelegramBot.Message, match: RegExpExecArray | null) => {
         const chatId = msg.chat.id.toString();
+        if (!(await isUserAuthorized(chatId))) return; // Enforce middleware
+
         const input = match?.[1]?.trim();
 
         if (!input) {
@@ -156,6 +204,8 @@ export function registerCommands(): void {
     // /list
     bot.onText(/^\/list$/, async (msg: TelegramBot.Message) => {
         const chatId = msg.chat.id.toString();
+        if (!(await isUserAuthorized(chatId))) return; // Enforce middleware
+
         try {
             const accounts = await getWatchedAccounts();
             if (accounts.length === 0) {
@@ -175,6 +225,8 @@ export function registerCommands(): void {
     // /status
     bot.onText(/^\/status$/, async (msg: TelegramBot.Message) => {
         const chatId = msg.chat.id.toString();
+        if (!(await isUserAuthorized(chatId))) return; // Enforce middleware
+
         try {
             const watchedCount = await getWatchedCount();
             const clankerStatus = isClankerWsConnected() ? '🟢 Connected' : '🔴 Reconnecting...';
@@ -201,6 +253,8 @@ export function registerCommands(): void {
     // /recent
     bot.onText(/^\/recent$/, async (msg: TelegramBot.Message) => {
         const chatId = msg.chat.id.toString();
+        if (!(await isUserAuthorized(chatId))) return; // Enforce middleware
+
         try {
             const alerts = await getRecentAlerts(5);
             if (alerts.length === 0) {
@@ -229,6 +283,8 @@ export function registerCommands(): void {
     // /help
     bot.onText(/^\/help$/, async (msg: TelegramBot.Message) => {
         const chatId = msg.chat.id.toString();
+        if (!(await isUserAuthorized(chatId))) return; // Enforce middleware
+
         const message = [
             `🤖 <b>KRAVEN — Command Reference</b>`,
             ``,
