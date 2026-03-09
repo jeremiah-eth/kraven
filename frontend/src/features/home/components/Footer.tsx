@@ -22,8 +22,8 @@ export default function Footer() {
                         <h3 className="font-semibold text-foreground mb-4">Product</h3>
                         <ul className="space-y-3">
                             <li><Link href="#" className="hover:text-primary transition-colors">Features</Link></li>
-                            <li><Link href="#" className="hover:text-primary transition-colors">Pricing</Link></li>
-                            <li><Link href="#" className="hover:text-primary transition-colors">Roadmap</Link></li>
+                            <li><a href="#" className="text-muted-foreground hover:text-primary transition-colors">Twitter (X)</a></li>
+                            <li><a href="mailto:hollakravenbot@gmail.com" className="text-muted-foreground hover:text-primary transition-colors">Support Email</a></li>
                         </ul>
                     </div>
 

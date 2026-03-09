@@ -1,14 +1,28 @@
-"use client";
-
-import { useState } from "react";
-import { motion } from "framer-motion";
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import { BotIcon, ChevronRightIcon, BellRingIcon } from "lucide-react";
 
+const WORDS = [
+    "Alpha Deployment",
+    "Early Entry",
+    "Stealth Launch",
+    "Base Opportunity",
+    "Clanker Gem"
+];
+
 export default function Hero() {
+    const [index, setIndex] = useState(0);
     const [email, setEmail] = useState("");
     const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setIndex((prev) => (prev + 1) % WORDS.length);
+        }, 3000);
+        return () => clearInterval(interval);
+    }, []);
 
     const handleJoinWaitlist = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -70,12 +84,23 @@ export default function Hero() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.1, ease: "easeOut" }}
-                className="max-w-4xl text-5xl sm:text-6xl md:text-7xl font-bold tracking-tight text-foreground"
+                className="max-w-4xl text-5xl sm:text-6xl md:text-7xl font-bold tracking-tight text-foreground h-[2.4em] sm:h-[auto]"
             >
                 Never Miss an <br className="hidden md:block" />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-blue-500 to-purple-500">
-                    Alpha Deployment
-                </span>
+                <div className="relative h-[1.25em] flex items-center justify-center overflow-hidden">
+                    <AnimatePresence mode="wait">
+                        <motion.span
+                            key={WORDS[index]}
+                            initial={{ y: 40, opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            exit={{ y: -40, opacity: 0 }}
+                            transition={{ duration: 0.5, ease: "easeInOut" }}
+                            className="absolute text-transparent bg-clip-text bg-gradient-to-r from-primary via-blue-500 to-purple-500 whitespace-nowrap"
+                        >
+                            {WORDS[index]}
+                        </motion.span>
+                    </AnimatePresence>
+                </div>
             </motion.h1>
 
             <motion.p

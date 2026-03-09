@@ -12,9 +12,10 @@ export default function ReachUs() {
                     <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight">
                         Ready to secure your alpha?
                     </h2>
-                    <p className="text-lg text-muted-foreground max-w-xl mx-auto md:mx-0">
-                        Join the waitlist today or reach out to secure a VIP enterprise tier and never miss a launch on Base.
-                    </p>
+                    <p className="text-muted-foreground mb-4">Have questions or need assistance? Our team is here to help.</p>
+                    <a href="mailto:hollakravenbot@gmail.com" className="text-primary font-medium hover:underline">
+                        hollakravenbot@gmail.com
+                    </a>
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
