@@ -1,12 +1,12 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { ZapIcon, GlobeLockIcon, ShieldCheckIcon, SmartphoneIcon } from "lucide-react";
+import { ZapIcon, GlobeIcon, ShieldCheckIcon, SmartphoneIcon } from "lucide-react";
 
 export default function RevolvingSection() {
     const features = [
         { icon: <ZapIcon className="h-6 w-6 text-primary" />, text: "Instant WebSocket Tracking" },
-        { icon: <GlobeLockIcon className="h-6 w-6 text-blue-400" />, text: "Clanker & Doppler Factories" },
+        { icon: <GlobeIcon className="h-6 w-6 text-blue-400" />, text: "Clanker & Doppler Factories" },
         { icon: <ShieldCheckIcon className="h-6 w-6 text-green-400" />, text: "Bankr Integration" },
         { icon: <SmartphoneIcon className="h-6 w-6 text-purple-400" />, text: "Direct Telegram Alerts" },
     ];
