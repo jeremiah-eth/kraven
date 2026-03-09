@@ -38,7 +38,8 @@ function createWsClient(): PublicClient {
     return createPublicClient({
         chain: base,
         transport: webSocket(config.baseWssRpcUrl, {
-            reconnect: false, // We handle reconnection manually
+            keepAlive: true,
+            reconnect: true,
             timeout: 30_000,
         }),
     });
@@ -282,17 +283,8 @@ export async function startChainListener(): Promise<void> {
 
         startWatching();
 
-        setInterval(async () => {
-            try {
-                await client.getBlockNumber();
-                // If we reach here, connection is active
-            } catch {
-                clankerWsConnected = false;
-                dopplerWsConnected = false;
-                logger.warn('Lost WebSocket connection.');
-                await scheduleReconnect();
-            }
-        }, 30_000);
+        // Removed the 30s manual polling interval since viem now handles WebSocket
+        // reconnections natively via keepAlive and reconnect flags.
 
     } catch (err) {
         logger.error('Failed to start listeners:', err);

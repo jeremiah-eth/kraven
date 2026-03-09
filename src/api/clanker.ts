@@ -184,9 +184,17 @@ export async function discoverWalletsFromClanker(xHandle: string): Promise<strin
 
         const wallets = new Set<string>();
         for (const token of data) {
-            // STRICT VERIFICATION: Ensure the token's metadata actually matches the handle we are looking for
+            // Check if it's a verifyable match via explicit handle field
             const tokenHandle = extractXHandle(token);
-            if (tokenHandle !== xHandle.toLowerCase().replace(/^@/, '')) {
+            const isBankr = extractPlatform(token) === 'via Bankr';
+
+            // If it's a Bankr token AND the search found it, we are more lenient
+            // because Bankr deployments often hide handles behind FIDs or in private DBs.
+            // If the handle matches OR it's a Bankr token (since the search found it), we take it.
+            const isMatch = tokenHandle === xHandle.toLowerCase().replace(/^@/, '') ||
+                (isBankr && JSON.stringify(token).toLowerCase().includes(xHandle.toLowerCase().replace(/^@/, '')));
+
+            if (!isMatch && !isBankr) {
                 continue;
             }
 

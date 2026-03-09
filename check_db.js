@@ -1,42 +1,26 @@
 const { createClient } = require('@supabase/supabase-js');
-// Load config manually since we can't easily import from .ts in a plain node script without ts-node
 require('dotenv').config();
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
-
-if (!supabaseUrl || !supabaseKey) {
-    console.error('Missing SUPABASE_URL or SUPABASE_ANON_KEY');
-    process.exit(1);
-}
-
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
 
 async function checkDb() {
-    console.log('--- Checking Database ---');
-    const { data: accounts, error: err1 } = await supabase
-        .from('watched_accounts')
-        .select('*')
-        .order('added_at', { ascending: false })
-        .limit(5);
+    const handles = ['jerrydotdev', 'whistler_agent'];
+    console.log(`--- Checking DB for: ${handles.join(', ')} ---`);
 
-    if (err1) {
-        console.error('Error fetching accounts:', err1);
-    } else {
-        console.log('Recent Watched Accounts:', JSON.stringify(accounts, null, 2));
-    }
-
-    const { data: wallets, error: err2 } = await supabase
+    const { data: wallets, error } = await supabase
         .from('watched_wallets')
         .select('*')
-        .order('discovered_at', { ascending: false })
-        .limit(10);
+        .in('x_handle', handles);
 
-    if (err2) {
-        console.error('Error fetching wallets:', err2);
-    } else {
-        console.log('Recent Discovered Wallets:', JSON.stringify(wallets, null, 2));
+    if (error) {
+        console.error('Error:', error.message);
+        return;
     }
+
+    console.log(`Found ${wallets.length} wallets.`);
+    wallets.forEach(w => {
+        console.log(`- ${w.x_handle}: ${w.wallet_address} (Source: ${w.source})`);
+    });
 }
 
 checkDb();

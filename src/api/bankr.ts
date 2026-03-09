@@ -1,7 +1,8 @@
 import axios from 'axios';
 import { logger } from '../logger';
 
-const BANKR_API_BASE = 'https://api.bankr.chat/launches';
+const BANKR_API_BASE = 'https://api.bankr.bot/launches';
+const BANKR_API_FALLBACK = 'https://api.bankr.chat/launches';
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 2000;
 
@@ -73,30 +74,43 @@ export async function discoverWalletsFromBankr(xHandle: string): Promise<string[
         const handle = xHandle.toLowerCase().replace(/^@/, '');
         logger.info(`Discovering Bankr wallets for @${handle}`);
 
-        const response = await axios.get(BANKR_API_BASE, { timeout: 10000 });
-        const launches = response.data;
-
-        if (!Array.isArray(launches)) return [];
-
-        const wallets = new Set<string>();
-        for (const l of launches) {
-            const lHandle = (l.x_handle || l.twitter_handle || l.deployer_handle || '').toLowerCase().replace(/^@/, '');
-            if (lHandle === handle) {
-                const deployer = l.deployer || l.creator || l.msg_sender || null;
-                if (deployer && typeof deployer === 'string' && deployer.startsWith('0x')) {
-                    wallets.add(deployer.toLowerCase());
+        try {
+            const response = await axios.get(BANKR_API_BASE, { timeout: 10000 });
+            return await processLaunches(response.data, handle, xHandle);
+        } catch (err: any) {
+            logger.warn(`Primary Bankr API failed, trying fallback: ${err.message}`);
+            try {
+                const response = await axios.get(BANKR_API_FALLBACK, { timeout: 10000 });
+                return await processLaunches(response.data, handle, xHandle);
+            } catch (fallbackErr: any) {
+                if (fallbackErr.response?.status === 403) {
+                    logger.warn(`Bankr API returned 403 during discovery for @${xHandle}`);
+                } else {
+                    logger.error(`Error discovering Bankr wallets for ${xHandle}:`, fallbackErr);
                 }
+                return [];
             }
         }
-
-        logger.info(`Found ${wallets.size} wallets for @${handle} on Bankr`);
-        return Array.from(wallets);
     } catch (err: any) {
-        if (err.response?.status === 403) {
-            logger.warn(`Bankr API returned 403 during discovery for @${xHandle}`);
-        } else {
-            logger.error(`Error discovering Bankr wallets for ${xHandle}:`, err);
-        }
+        logger.error(`Fatal error during Bankr discovery for ${xHandle}:`, err);
         return [];
     }
+}
+
+async function processLaunches(launches: any, handle: string, xHandle: string): Promise<string[]> {
+    if (!Array.isArray(launches)) return [];
+
+    const wallets = new Set<string>();
+    for (const l of launches) {
+        const lHandle = (l.x_handle || l.twitter_handle || l.deployer_handle || '').toLowerCase().replace(/^@/, '');
+        if (lHandle === handle) {
+            const deployer = l.deployer || l.creator || l.msg_sender || null;
+            if (deployer && typeof deployer === 'string' && deployer.startsWith('0x')) {
+                wallets.add(deployer.toLowerCase());
+            }
+        }
+    }
+
+    logger.info(`Found ${wallets.size} wallets for @${handle} on Bankr`);
+    return Array.from(wallets);
 }
