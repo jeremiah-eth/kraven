@@ -1,8 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Setup fallback dummy values during build-time so `next build` doesn't crash
-// Vercel will inject the real values at runtime.
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key';
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// We only initialize the client if we have the required keys.
+// This prevents the build from crashing while also ensuring we don't 
+// accidentally point to a 'placeholder' domain at runtime.
+export const supabase = (supabaseUrl && supabaseAnonKey)
+    ? createClient(supabaseUrl, supabaseAnonKey)
+    : (null as any);
+

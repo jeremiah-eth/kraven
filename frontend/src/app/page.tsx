@@ -6,7 +6,7 @@ import ReachUs from "@/features/contact/components/ReachUs";
 export default function Home() {
   return (
     <div className="font-sans flex overflow-x-hidden flex-col">
-      <div className="flex items-center justify-center h-[80dvh]">
+      <div className="flex items-center justify-center min-h-screen">
         <Hero />
       </div>
       <RevolvingSection />

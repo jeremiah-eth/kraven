@@ -20,6 +20,12 @@ export default function Hero() {
         setLoading(true);
 
         try {
+            if (!supabase) {
+                toast.error("Supabase configuration is missing. Please check your environment variables.");
+                setLoading(false);
+                return;
+            }
+
             // In a real application, you'd want to create this table first!
             const { error } = await supabase
                 .from("waitlist")
@@ -44,7 +50,7 @@ export default function Hero() {
     };
 
     return (
-        <section className="relative w-full flex flex-col items-center justify-center text-center px-4 sm:px-6 lg:px-8 mt-16">
+        <section className="relative w-full flex flex-col items-center justify-center text-center px-4 sm:px-6 lg:px-8 pt-24 pb-12 sm:pt-32 sm:pb-24">
 
             {/* Badge container */}
             <motion.div
